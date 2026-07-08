@@ -67,7 +67,7 @@
           '\nWhat I own: ' + p.asset + '\nLocation: ' + p.location +
           '\n\nDetails:\n' + (p.notes || '(none)') + '\n\nPlease prepare my free, written valuation. Thank you.';
         mailto(subject, body);
-        if (done) { done.style.display = 'block'; }
+        if (done) { done.textContent = "Opening your email app — just hit send and it's on its way. Prefer not to? Call or text (702) 899-5517."; done.style.display = 'block'; }
       }
     });
   }
