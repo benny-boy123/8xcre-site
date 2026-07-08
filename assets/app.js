@@ -72,4 +72,20 @@
     });
   }
 
+  /* Scroll reveal — hidden state only applies once JS marks the doc, and a
+     failsafe guarantees content is never left hidden if the observer misfires. */
+  document.documentElement.classList.add('js');
+  var srEls = document.querySelectorAll('.sr');
+  var reveal = function (el) { el.classList.add('in'); };
+  if (srEls.length && 'IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { reveal(e.target); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -6% 0px' });
+    srEls.forEach(function (el) { io.observe(el); });
+    setTimeout(function () { srEls.forEach(reveal); }, 4000); // failsafe
+  } else {
+    srEls.forEach(reveal);
+  }
 })();

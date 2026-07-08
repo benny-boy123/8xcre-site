@@ -292,4 +292,41 @@ footer a:hover{color:var(--gold)}
   .field-row{grid-template-columns:1fr}
   .val-card{padding:32px 22px}
   .foot-in{flex-direction:column}
+  .imgband{height:220px}
 }
+
+/* ---------- HERO MEDIA ---------- */
+.hero{overflow:hidden}
+.hero-media{position:absolute;inset:0;z-index:0}
+.hero-media img,.hero-media video{width:100%;height:100%;object-fit:cover;object-position:center;display:block}
+.hero-media img{animation:kenburns 28s ease-out both}
+@keyframes kenburns{from{transform:scale(1.09)}to{transform:scale(1)}}
+.hero-scrim{position:absolute;inset:0;z-index:1;
+  background:
+    linear-gradient(98deg, rgba(10,10,11,.96) 0%, rgba(10,10,11,.9) 32%, rgba(10,10,11,.6) 72%, rgba(10,10,11,.42) 100%),
+    linear-gradient(0deg, rgba(10,10,11,.82) 0%, rgba(10,10,11,0) 42%)}
+.hero > .wrap{position:relative;z-index:2}
+@media(prefers-reduced-motion:reduce){ .hero-media img{animation:none;transform:none} }
+@media(max-width:720px){
+  .hero-scrim{background:linear-gradient(180deg, rgba(10,10,11,.7) 0%, rgba(10,10,11,.9) 52%, rgba(10,10,11,.97) 100%)}
+}
+
+/* ---------- NICHE CARD IMAGERY ---------- */
+.bento-card.has-media{padding:0}
+.card-media{position:relative;height:174px;overflow:hidden}
+.card-media img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .7s var(--ease)}
+.bento-card.has-media:hover .card-media img{transform:scale(1.06)}
+.card-media::after{content:'';position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(22,22,25,0) 45%,rgba(22,22,25,.92) 100%)}
+.bento-card.has-media .bento-body{padding:28px 32px 32px;display:flex;flex-direction:column;flex:1}
+
+/* ---------- FULL-BLEED IMAGE BAND ---------- */
+.imgband{position:relative;height:320px;overflow:hidden;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.imgband img{width:100%;height:100%;object-fit:cover;object-position:center 42%;display:block}
+.imgband::after{content:'';position:absolute;inset:0;
+  background:linear-gradient(0deg,rgba(10,10,11,.65),rgba(10,10,11,.2))}
+
+/* ---------- SCROLL REVEAL (hidden only when JS is active) ---------- */
+html.js .sr{opacity:0;transform:translateY(24px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
+html.js .sr.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){ html.js .sr{opacity:1;transform:none;transition:none} }
