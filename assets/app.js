@@ -1,6 +1,6 @@
 /* 8x CRE — shared behavior. No dependencies. */
 (function () {
-  var EMAIL = 'benny@8xexit.com';
+  var EMAIL = 'benny@8xcre.com';
 
   // Phase 2 lead capture: paste the deployed Google Apps Script /exec URL here.
   // Empty string = Phase 1 fallback (opens a pre-filled email). No live change until set.
@@ -72,28 +72,4 @@
     });
   }
 
-  /* Interest form (8x Exit — opening soon) */
-  var iform = document.getElementById('intForm');
-  if (iform) {
-    iform.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var p = {
-        name: val('iName'), email: val('iEmail'), phone: val('iPhone'),
-        asset: '', location: '', notes: val('iNotes'),
-        page: pageName(), leadType: 'exit-interest'
-      };
-      var done = document.getElementById('intDone');
-      if (sendLead(p)) {
-        iform.reset();
-        if (done) { done.textContent = "You're on the list — we'll reach out when 8x Exit opens."; done.style.display = 'block'; }
-      } else {
-        var subject = '8x Exit — notify me when it opens';
-        var body = 'Name: ' + p.name + '\nEmail: ' + p.email + '\nPhone: ' + p.phone +
-          '\nBusiness/industry: ' + (p.notes || '(none)') +
-          '\n\nPlease notify me when 8x Exit opens for business-brokerage engagements. Thank you.';
-        mailto(subject, body);
-        if (done) { done.style.display = 'block'; }
-      }
-    });
-  }
 })();

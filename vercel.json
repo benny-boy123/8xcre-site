@@ -5,8 +5,10 @@
   "redirects": [
     { "source": "/home", "destination": "/", "permanent": true },
     { "source": "/park-advisors", "destination": "/parks", "permanent": true },
-    { "source": "/business-brokerage", "destination": "/exit", "permanent": true },
-    { "source": "/real-estate", "destination": "/commercial", "permanent": true }
+    { "source": "/commercial", "destination": "/retail", "permanent": true },
+    { "source": "/real-estate", "destination": "/retail", "permanent": true },
+    { "source": "/exit", "destination": "/", "permanent": true },
+    { "source": "/business-brokerage", "destination": "/", "permanent": true }
   ],
   "headers": [
     {
