@@ -4,6 +4,9 @@
   "trailingSlash": false,
   "redirects": [
     { "source": "/home", "destination": "/", "permanent": true },
+    { "source": "/offices", "destination": "/office", "permanent": true },
+    { "source": "/medical", "destination": "/office", "permanent": true },
+    { "source": "/medical-office", "destination": "/office", "permanent": true },
     { "source": "/park-advisors", "destination": "/parks", "permanent": true },
     { "source": "/glamping", "destination": "/parks", "permanent": true },
     { "source": "/retail", "destination": "/business", "permanent": true },
