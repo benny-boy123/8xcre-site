@@ -288,11 +288,7 @@ footer a:hover{color:var(--gold-bright)}
   .bento,.bento.has-flagship{grid-template-columns:1fr}
   .spotlight-grid{grid-template-columns:1fr;gap:36px}
   .c-grid{grid-template-columns:1fr;gap:32px}
-}
-@media(max-width:720px){
-  body{font-size:16.5px}
-  .wrap{padding:0 20px}
-  .nav-in{padding:13px 20px}
+  /* 6 links wrap between 720-900px — collapse to the drawer earlier */
   .nav-links{position:fixed;inset:57px 0 auto 0;flex-direction:column;align-items:flex-start;
     gap:0;background:var(--bg);border-bottom:1px solid var(--border);padding:8px 20px 20px;
     transform:translateY(-140%);transition:transform .3s var(--ease);z-index:40}
@@ -300,6 +296,11 @@ footer a:hover{color:var(--gold-bright)}
   .nav-links a{padding:13px 0;width:100%;border-bottom:1px solid var(--border);font-size:16px}
   .nav-links .nav-cta{margin-top:12px;border-bottom:0;text-align:center}
   .nav-toggle{display:block}
+}
+@media(max-width:720px){
+  body{font-size:16.5px}
+  .wrap{padding:0 20px}
+  .nav-in{padding:13px 20px}
   .hero{padding:64px 0 60px}
   section{padding:64px 0}
   .band-in{grid-template-columns:1fr}
