@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Your building on Eastern — 8x CRE</title>
+<style>
+  /* 8x CRE per-owner property page. Mobile-first, one lead per page.
+     Same design system as templates/onepager.html: warm paper, ONE rust
+     accent, restrained broker-grade tone. Everything is inline — no font
+     request, no script from anywhere, no image request unless an aerial was
+     cached. The page is readable with images blocked and with JS off. */
+  :root{
+    --ink:#211a14;   --paper:#fdfbf5;  --paper2:#f7f1e6;
+    --accent:#a8492a;
+    --line:#d8cdb8;  --muted:#6b6053;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{background:var(--paper);}
+  body{
+    font-family:-apple-system,"Avenir Next","Avenir","Helvetica Neue",Arial,sans-serif;
+    color:var(--ink);font-size:16px;line-height:1.5;
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:520px;margin:0 auto;padding:0 0 40px;}
+
+  .mast{display:flex;justify-content:space-between;align-items:baseline;
+        border-bottom:2px solid var(--ink);padding:18px 20px 10px;}
+  .mast .brand{font-family:"Hoefler Text",Georgia,serif;font-size:17px;letter-spacing:.02em;}
+  .mast .brand b{font-weight:700;}
+  .mast .doc{font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+             color:var(--muted);text-align:right;}
+
+  .hero{padding:22px 20px 4px;}
+  h1{font-family:"Hoefler Text","Didot",Georgia,serif;font-weight:600;
+     font-size:26px;line-height:1.28;margin:0 0 10px;}
+  .identity{font-size:12.5px;letter-spacing:.04em;color:var(--muted);margin-bottom:16px;}
+  .identity b{color:var(--ink);font-weight:600;}
+
+  .visual{margin:0 20px;border:1px solid var(--line);padding:5px;background:#fff;}
+  .visual img,.visual svg{display:block;width:100%;height:auto;}
+  .visual img{aspect-ratio:3/2;object-fit:cover;}
+  .visual .cap{font-size:11px;color:var(--muted);padding:7px 3px 1px;}
+
+  .section{padding:22px 20px 0;}
+  .lab{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+       margin-bottom:10px;font-weight:600;}
+  .prose{font-size:15.5px;line-height:1.55;}
+  .prose + .prose{margin-top:10px;}
+
+  .facts{background:var(--paper2);border:1px solid var(--line);
+         border-left:4px solid var(--accent);padding:14px 16px;list-style:none;}
+  .facts li{font-size:15px;padding:7px 0;border-bottom:1px dotted var(--line);}
+  .facts li:last-child{border-bottom:none;}
+  .disc{font-size:12px;font-style:italic;color:var(--muted);margin-top:10px;}
+
+  /* ---- verify block: the lowest-friction CTA we have ---- */
+  .verify{margin:26px 20px 0;background:var(--ink);color:#fdfbf5;padding:20px;}
+  .verify .lab{color:#d8cdb8;}
+  .verify .intro{font-size:14.5px;line-height:1.5;color:#e8dfcd;margin-bottom:16px;}
+  .q{margin-bottom:16px;}
+  .qt{font-size:15px;line-height:1.45;margin-bottom:9px;}
+  .qt b{color:#fff;}
+  .opts{display:flex;gap:8px;flex-wrap:wrap;}
+  .opts label{flex:1 1 0;min-width:88px;}
+  .opts input{position:absolute;opacity:0;width:0;height:0;}
+  .opts span{display:block;text-align:center;padding:10px 8px;font-size:14.5px;
+             border:1.5px solid #6b6053;border-radius:3px;cursor:pointer;color:#e8dfcd;}
+  .opts input:checked + span{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .opts input:focus-visible + span{outline:2px solid #fff;outline-offset:2px;}
+  .fix{width:100%;margin-top:9px;padding:10px;font:inherit;font-size:15px;
+       border:1.5px solid #6b6053;border-radius:3px;background:#2d241c;color:#fdfbf5;}
+  .fix::placeholder{color:#8a7d6d;}
+  .send{width:100%;margin-top:4px;padding:13px 16px;border:0;border-radius:3px;
+        background:var(--accent);color:#fff;font:inherit;font-size:15.5px;
+        font-weight:600;cursor:pointer;}
+  .thanks{display:none;font-size:15px;line-height:1.5;color:#e8dfcd;}
+  .hp{position:absolute;left:-9999px;}
+
+  /* ---- LAYER 2: the value unlock. Paper card, not the dark block, so it
+         reads as an offer rather than a second interrogation. ---- */
+  .unlock{margin:26px 20px 0;background:var(--paper2);border:1px solid var(--line);
+          border-left:4px solid var(--accent);padding:20px;}
+  .unlock h2{font-family:"Hoefler Text",Georgia,serif;font-size:21px;font-weight:600;
+             line-height:1.3;margin-bottom:10px;}
+  .unlock .why{font-size:14.5px;line-height:1.55;color:var(--muted);margin-bottom:16px;}
+  .fld{margin-bottom:12px;}
+  .fld label{display:block;font-size:13px;letter-spacing:.03em;color:var(--muted);
+             margin-bottom:5px;font-weight:600;}
+  .fld input,.fld select{width:100%;padding:11px 10px;font:inherit;font-size:16px;
+             border:1.5px solid var(--line);border-radius:3px;background:#fff;
+             color:var(--ink);}
+  .fld input:focus,.fld select:focus{outline:2px solid var(--accent);outline-offset:1px;}
+  .opt{font-weight:400;color:var(--muted);}
+
+  /* Consent: never pre-ticked, never styled to look pre-ticked, and given a
+     real touch target. The wording is fixed by CONSENT-LANGUAGE.md v1. */
+  .consent{display:flex;gap:11px;align-items:flex-start;margin:16px 0 12px;
+           background:#fff;border:1px solid var(--line);padding:13px 14px;}
+  .consent input{flex:0 0 auto;width:21px;height:21px;margin-top:1px;
+                 accent-color:var(--accent);}
+  .consent span{font-size:14px;line-height:1.5;}
+  .consent b{font-weight:600;}
+  .fine{font-size:12px;line-height:1.55;color:var(--muted);margin-top:10px;}
+  .fine em{font-style:italic;}
+  /* NRS 645.2515 sets a FLOOR on how a broker's price-opinion disclaimer is
+     displayed: at least 14-point, bold. This line used to render inside .fine
+     (12px, not bold — about 9pt) on all 1,647 pages, which is below the
+     statute. Size and weight are load-bearing here, not styling: do not fold
+     this back into .fine, and do not shrink it to fit a layout. Points, not
+     pixels, because the statute is written in points. */
+  .opinion{font-size:14pt;font-weight:700;line-height:1.4;color:var(--ink);
+           margin-top:14px;}
+  .unlock .send{background:var(--accent);color:#fff;}
+  .unlock .thanks{color:var(--ink);}
+
+  .cta{margin:26px 20px 0;text-align:center;background:var(--paper2);
+       border:1px solid var(--line);padding:22px 18px 20px;}
+  .cta-head{font-family:"Hoefler Text",Georgia,serif;font-size:19px;font-weight:600;
+            margin-bottom:14px;line-height:1.3;}
+  .btn{display:block;width:100%;padding:13px 16px;margin-bottom:10px;border-radius:3px;
+       font-size:15.5px;font-weight:600;text-decoration:none;text-align:center;}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-secondary{background:transparent;color:var(--ink);border:1.5px solid var(--ink);}
+  .cta-email{font-size:13px;color:var(--muted);margin-top:6px;}
+  .cta-email a{color:var(--ink);}
+
+  .method{margin:24px 20px 0;font-size:13px;line-height:1.6;color:var(--muted);
+          border-left:3px solid var(--line);padding-left:12px;}
+
+  .foot{margin:22px 20px 0;border-top:2px solid var(--ink);padding-top:12px;
+        font-size:11px;color:var(--muted);line-height:1.6;}
+  .foot .lic{color:var(--ink);}
+  .foot p{margin-top:8px;}
+
+  @media (min-width:640px){
+    .wrap{max-width:560px;box-shadow:0 0 0 1px var(--line);margin:24px auto;}
+    h1{font-size:30px;}
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .opts span,.send{transition:background .12s ease,border-color .12s ease;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="mast">
+    <div class="brand"><b>8x</b> CRE</div>
+    <div class="doc">Prepared for the owner<br>August 2026</div>
+  </div>
+
+  <div class="hero">
+    <h1>Three office buildings within a mile of 6745 S Eastern Ave just changed hands.</h1>
+    <div class="identity"><b>6745 S EASTERN AVE, Las Vegas, NV</b> &middot; the Eastern corridor</div>
+  </div>
+
+  <div class="visual">
+    <svg class="plate" viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Your parcel outlined on the county parcel map"><rect width="600" height="400" fill="#f2ece0"/><path d="M627.4,28.8L627.4,78.2L547.9,71.2L553.2,25.3L627.4,28.8ZM553.2,125.9L553.2,78.2L627.4,80.0L627.4,127.6L553.2,125.9ZM551.5,177.1L553.2,127.6L627.4,129.4L625.6,178.8L551.5,177.1ZM625.6,178.8L625.6,228.2L549.7,226.5L553.2,178.8L625.6,178.8ZM551.5,277.6L551.5,228.2L625.6,230.0L623.8,279.4L551.5,277.6ZM623.8,307.6L606.2,307.6L606.2,328.8L549.7,330.6L546.2,284.7L623.8,279.4L623.8,307.6ZM376.8,275.9L380.3,328.8L219.7,327.1L221.5,274.1L376.8,275.9ZM376.8,226.5L376.8,275.9L221.5,274.1L223.2,224.7L376.8,226.5ZM378.5,125.9L376.8,175.3L244.4,173.5L244.4,155.9L223.2,154.1L225.0,122.4L378.5,125.9ZM378.5,76.5L378.5,124.1L223.2,118.8L223.2,72.9L378.5,76.5ZM378.5,74.7L302.6,72.9L302.6,25.3L385.6,21.8L378.5,74.7ZM302.6,25.3L300.9,72.9L223.2,71.2L228.5,20.0L302.6,25.3Z" fill="#e8dfcd" stroke="#c9bda3" stroke-width="1.2"/><path d="M376.8,175.3L376.8,226.5L223.2,224.7L223.2,192.9L244.4,192.9L244.4,173.5L376.8,175.3Z" fill="#f0dfd0" stroke="#a8492a" stroke-width="3.5" stroke-linejoin="round"/><g transform="translate(18,378)"><rect x="0" y="0" width="88.2" height="4" fill="#211a14"/><text x="0" y="-6" font-size="13" font-family="Helvetica,Arial" fill="#211a14">50 ft</text></g></svg>
+    <div class="cap">Your parcel, outlined &mdash; Clark County parcel map</div>
+  </div>
+
+  <div class="section">
+    <p class="prose">Before writing you, I went through every office building within one mile of yours on Eastern. Three of them changed hands in the last three months. When a building that close trades, it moves what buyers will pay on the whole corridor — including for yours. If you want a straight answer on where that leaves you, I can give you one.</p>
+  </div>
+
+  <div class="section">
+    <div class="lab">Your corridor, in numbers</div>
+    <ul class="facts">
+      <li>60 office buildings front Eastern itself.</li>
+      <li>192 office buildings sit within a mile of yours.</li>
+      <li>43 office buildings within that mile changed hands in the last five years.</li>
+    </ul>
+    
+  </div>
+
+  <div class="section">
+    <div class="lab">What&rsquo;s new near you</div>
+    <p class="prose">Two office buildings are listed for sale on Eastern right now and another one is listed for lease. When more of them are on the market at once, the ones priced right go first.</p>
+  </div>
+
+  <form class="verify" id="vf" method="post" action="mailto:benny@8xcre.com?subject=8xcre.com%20page%2008727855%20%E2%80%94%20corrections">
+    <div class="lab">Two quick questions</div>
+    <p class="intro">I built this from county data, which is right most of the time and
+      wrong some of the time. Correct me and I will fix it on my end.</p>
+
+    <!-- Field NAMES are the endpoint's column contract, not free choices:
+         doPost() in 8xcre-property-page-capture.gs reads sf_correct,
+         still_owner and corrections by name and drops anything else. The three
+         free-text boxes are packed into `corrections` by the script below. -->
+    <input type="hidden" name="type" value="verify">
+    <input type="hidden" name="token" value="08727855">
+    <input type="hidden" name="apn" value="17702613027">
+    <input type="hidden" name="property_address" value="6745 S EASTERN AVE, Las Vegas, NV">
+    <input type="hidden" name="v" value="p3">
+    <label class="hp" aria-hidden="true">Leave this empty
+      <input type="text" name="company" tabindex="-1" autocomplete="off"></label>
+
+    <div class="q"><p class="qt">The county does not publish a land size for your parcel. Do you have it?</p>
+      <div class="opts">
+        <label><input type="radio" name="sf_correct" value="yes"><span>Yes</span></label>
+        <label><input type="radio" name="sf_correct" value="no"><span>No</span></label>
+      </div>
+      <input class="fix" type="text" name="land_fix" inputmode="numeric"
+             placeholder="Land size, if you have it">
+      <!-- Placeholders are capped at ~30 chars: anything longer is clipped
+           mid-word on a 375 px phone, which is where nearly every scan of a
+           mailed QR code happens. -->
+      <input class="fix" type="text" name="building_sf" inputmode="numeric"
+             placeholder="Building size, if you know it">
+    </div>
+
+    <div class="q">
+      <p class="qt">Are you still the owner?</p>
+      <div class="opts">
+        <label><input type="radio" name="still_owner" value="yes"><span>Yes</span></label>
+        <label><input type="radio" name="still_owner" value="no"><span>No</span></label>
+      </div>
+      <input class="fix" type="text" name="owner_fix"
+             placeholder="If not &mdash; who should I be talking to?">
+    </div>
+
+    <button class="send" type="submit">Send it over</button>
+    <p class="thanks" id="th">Got it &mdash; thank you. I will correct my file and you
+      will not get a duplicate of this.</p>
+  </form>
+
+  <!-- ================= LAYER 2 — the value unlock =========================
+       Layer 1 above is free and complete on its own. Nothing here is a wall in
+       front of it; this is a second, different thing an owner can ask for.
+       The reason we ask is stated plainly because it is the actual reason. -->
+  <form class="unlock" id="uf" method="post" action="mailto:benny@8xcre.com?subject=8xcre.com%20page%2008727855%20%E2%80%94%20value%20range%20request">
+    <h2>What is it worth today?</h2>
+    <p class="why">A value estimate is sensitive information about your property. I email it rather than posting it on this page, so it goes to an address you control and not to whoever happens to open this link.</p>
+
+    <input type="hidden" name="type" value="unlock">
+    <input type="hidden" name="token" value="08727855">
+    <input type="hidden" name="apn" value="17702613027">
+    <input type="hidden" name="property_address" value="6745 S EASTERN AVE, Las Vegas, NV">
+    <input type="hidden" name="v" value="p3">
+    <input type="hidden" name="consent_version" value="v1">
+    <!-- The exact sentence rendered below travels with every submission,
+         checked or not, so we can always prove what was on screen. -->
+    <input type="hidden" name="consent_language" value="Yes, Benny Plaksin of 8x CRE (Silver State Brokers, LLC) may call or text me at the number above about this property. This is not required to get my value range, and I can tell him to stop at any time.">
+    <label class="hp" aria-hidden="true">Leave this empty
+      <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+
+    <div class="fld">
+      <label for="u-name">Your name</label>
+      <input id="u-name" type="text" name="name" autocomplete="name" required>
+    </div>
+    <div class="fld">
+      <label for="u-email">Email &mdash; this is where I send it</label>
+      <input id="u-email" type="email" name="email" autocomplete="email"
+             inputmode="email" required>
+    </div>
+    <div class="fld">
+      <label for="u-mobile">Mobile <span class="opt">&mdash; optional</span></label>
+      <input id="u-mobile" type="tel" name="mobile" autocomplete="tel" inputmode="tel">
+    </div>
+    <div class="fld">
+      <label for="u-role">Your connection to the property</label>
+      <select id="u-role" name="role" required>
+        <option value="" selected disabled>Choose one</option>
+        <option value="owner">I own this property</option>
+        <option value="manager">I manage it</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+
+    <label class="consent">
+      <input type="checkbox" name="contact_consent" value="yes">
+      <span><b>Yes, Benny Plaksin of 8x CRE (Silver State Brokers, LLC) may call or text me at the number above about this property.</b> This is not required to get my value range, and I can tell him to stop at any time.</span>
+    </label>
+
+    <button class="send" type="submit">Send me the range</button>
+    <p class="fine">Unless you tick the box above, giving a number here is not permission to call you.</p>
+    <p class="opinion">This range is my opinion, not an appraisal.</p>
+    <p class="thanks" id="uth">Got it &mdash; thank you. I will put the range together and email it to the address you gave me.</p>
+  </form>
+
+  <div class="cta">
+    <div class="cta-head">Want the whole picture? Fifteen minutes, no obligation.</div>
+    <a class="btn btn-primary" href="tel:+17028995517">Call or text (702) 899-5517</a>
+    <a class="btn btn-secondary" href="https://8xcre.com/book">Pick a time online</a>
+    <div class="cta-email">Or email <a href="mailto:benny@8xcre.com">benny@8xcre.com</a></div>
+  </div>
+
+  <div class="method">How I put this together: I went through every office building within a mile of yours, one at a time, using Clark County&#x27;s own parcel and sales data. No guesses, no averages borrowed from another part of town.</div>
+
+  <div class="foot">
+    <span class="lic">8x CRE &middot; Silver State Brokers, LLC &middot; NV Lic. # B.1003354.LLC &middot; 9890 South Maryland Parkway #200A, Las Vegas, NV 89183 &middot; (702) 899-5517</span><br>
+    If your property is currently listed with another broker, this is not a solicitation of that listing.
+    <p><b>Your privacy (Nevada NRS 603A).</b> We collect only what you send us on this page and, if you have not turned on a browser privacy signal, a record that this page was opened and when. We do not use cookies here, we do not build a profile, and we do not sell or share any of it with anyone for money or for anything of value. Under NRS 603A.340 you may tell us not to sell your information; we already do not. Under NRS 603A.345, send that request, or any request to see or delete what we hold, to benny@8xcre.com or to 8x CRE, 9890 South Maryland Parkway #200A, Las Vegas, NV 89183.</p>
+  </div>
+
+</div>
+
+<script>
+/* Cookieless, fingerprint-free, and it honours a browser privacy signal.
+   Two jobs only:
+     1. record that this page was opened (token + UTC timestamp, nothing else —
+        no cookie, no referrer, no user-agent, no id of any kind; that is
+        exactly what the NRS 603A notice in the footer describes)
+     2. POST the two forms as JSON without navigating away
+
+   NO-JS PATH. Both forms carry a mailto: action, always — never the endpoint.
+   The capture endpoint parses JSON, so a native browser POST (which sends
+   url-encoded form data) would fail on arrival. mailto: is the honest
+   fallback: it works with the endpoint set, unset, or down. */
+(function () {
+  var ENDPOINT = "https://script.google.com/macros/s/AKfycbwzLsNMx6HFE4o4QrNhGwp--B8c2u09rynfyw42WTIt08-XHJPNOzUFKHgpQtL_2f9iZA/exec", TOKEN = "08727855", V = "p3";
+  var optedOut = navigator.globalPrivacyControl === true ||
+                 navigator.doNotTrack === "1" || window.doNotTrack === "1";
+
+  if (ENDPOINT && !optedOut) {
+    try {
+      var body = JSON.stringify({ type: "view", token: TOKEN, v: V,
+                                  ts: new Date().toISOString() });
+      var blob = new Blob([body], { type: "application/json" });
+      if (!navigator.sendBeacon || !navigator.sendBeacon(ENDPOINT, blob)) {
+        fetch(ENDPOINT, { method: "POST", body: body, keepalive: true,
+                          headers: { "Content-Type": "application/json" } });
+      }
+    } catch (e) { /* the beacon must never break the page */ }
+  }
+
+  if (!ENDPOINT) return;                 /* no endpoint: leave mailto: alone */
+
+  /* The endpoint stores one `corrections` column. Fold the free-text boxes
+     into it, labelled, so nothing an owner typed is silently dropped. */
+  var PACK = { land_fix: "land size", building_sf: "building size",
+               owner_fix: "who to talk to" };
+
+  function wire(formId, thanksId, hideSel) {
+    var f = document.getElementById(formId);
+    if (!f) return;
+    f.addEventListener("submit", function (ev) {
+      if (!f.checkValidity()) return;    /* let the browser show its own error */
+      ev.preventDefault();
+      var d = {}, extra = [], fd = new FormData(f);
+      fd.forEach(function (v, k) {
+        v = String(v).trim();
+        if (v === "") return;
+        if (PACK[k]) { extra.push(PACK[k] + ": " + v); return; }
+        d[k] = v;
+      });
+      if (d.company || d.website) return;          /* honeypot: silent drop */
+      if (extra.length) d.corrections = extra.join(" · ");
+      /* An absent checkbox means NOT consented. Send it explicitly rather than
+         omitting it, so a dropped field can never be read as a yes. */
+      d.contact_consent = (fd.get("contact_consent") === "yes");
+      if (f.id !== "uf") delete d.contact_consent;
+      d.ts = new Date().toISOString();
+      fetch(ENDPOINT, { method: "POST", body: JSON.stringify(d), keepalive: true,
+                        headers: { "Content-Type": "application/json" } })
+        .catch(function () {});
+      Array.prototype.forEach.call(f.querySelectorAll(hideSel),
+        function (n) { n.style.display = "none"; });
+      document.getElementById(thanksId).style.display = "block";
+    });
+  }
+
+  wire("vf", "th", ".q,.intro,.send");
+  wire("uf", "uth", ".fld,.why,.consent,.send,.fine,.opinion");
+})();
+</script>
+</body>
+</html>
