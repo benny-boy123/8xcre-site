@@ -1,0 +1,309 @@
+# ==============================================================================
+# THE SUNDAY ROBOT — weekly rebuild + publish of the per-owner property pages.
+#
+# THIS FILE DOES NOT LIVE HERE. It is written and version-controlled in the
+# 8Xexit repo, and INSTALLED into the site repo at:
+#
+#     benny-boy123/8xcre-site  ->  .github/workflows/weekly-pages.yml
+#
+# Install steps + secrets: see README.md next to this file.
+# What to do when it breaks: see RUNBOOK.md next to this file.
+# ------------------------------------------------------------------------------
+# WHY IT RUNS ON A SELF-HOSTED RUNNER (read before "fixing" this to ubuntu-latest)
+#
+# The build's inputs are not on GitHub and cannot be:
+#   - 8Xexit has NO git remote. The engine scripts exist only on Benny's Mac.
+#   - The county cache is 357 MB and the census outputs carry owner names and
+#     mailing addresses. 8xcre-site is a PUBLIC repo. That data must never be
+#     pushed to it, and there is nowhere else to check it out from.
+#   - The Firecrawl CLI and the Clark County client run from that machine.
+#
+# So a GitHub-hosted runner has no engine, no data, and no way to get either.
+# The runner runs ON the Mac; only the finished, owner-safe HTML is pushed.
+# ==============================================================================
+name: weekly-pages
+
+on:
+  schedule:
+    # GitHub cron is UTC only and has no timezone support, so 02:00 America/
+    # Los_Angeles is two different UTC times across the year:
+    #     PDT (mid-Mar .. early Nov, UTC-7)  ->  09:00 UTC
+    #     PST (early Nov .. mid-Mar, UTC-8)  ->  10:00 UTC
+    # Both are registered. The first step reads the ACTUAL local clock and
+    # stops the wrong one, so exactly one real build happens each Sunday and
+    # it is always at 02:00 local. Do not "simplify" this to one line — that
+    # silently drifts an hour twice a year.
+    - cron: "0 9 * * 0"    # Sundays 02:00 PDT
+    - cron: "0 10 * * 0"   # Sundays 02:00 PST
+  workflow_dispatch:
+    inputs:
+      skip_listings:
+        description: "Skip the Firecrawl listings sweep (spends 0 credits)"
+        type: boolean
+        default: false
+      skip_corridors:
+        description: "Skip the corridor refresh (uses last week's corridor facts)"
+        type: boolean
+        default: false
+      min_ratio:
+        description: "Publish-guard floor, as a fraction of what is already live"
+        type: string
+        default: "0.90"
+
+concurrency:
+  group: weekly-pages
+  cancel-in-progress: false     # never kill a half-written publish
+
+permissions:
+  contents: write               # commit + push the built pages
+  issues: write                 # open an issue when the guard aborts
+
+jobs:
+  build-and-publish:
+    # Override with a repo variable if the runner is ever relabelled.
+    runs-on: ${{ vars.PAGES_RUNNER || 'self-hosted' }}
+    timeout-minutes: 90
+
+    env:
+      # Absolute path to the 8Xexit working copy ON THE RUNNER MACHINE.
+      ENGINE_DIR: ${{ vars.ENGINE_DIR || '/Users/bennyplaksin/8Xexit' }}
+      # A launchd-started runner does not inherit a login shell's PATH, so
+      # Homebrew (gh, python3) and nvm (firecrawl) are invisible unless we say
+      # so. Verified locations on the Mac, 2026-08-10.
+      EXTRA_PATH: ${{ vars.EXTRA_PATH || '/opt/homebrew/bin:/Users/bennyplaksin/.nvm/versions/node/v24.14.0/bin' }}
+      FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+      FORM_ENDPOINT: ${{ secrets.FORM_ENDPOINT }}
+      MIN_RATIO: ${{ inputs.min_ratio || '0.90' }}
+
+    steps:
+      # ----------------------------------------------------------------------
+      - name: Clock gate (02:00 America/Los_Angeles, DST-exact)
+        id: gate
+        run: |
+          set -euo pipefail
+          LOCAL_H=$(TZ=America/Los_Angeles date +%H)
+          LOCAL_T=$(TZ=America/Los_Angeles date "+%Y-%m-%d %H:%M %Z")
+          echo "runner local time: $LOCAL_T"
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "manual run — gate skipped"
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          elif [ "$LOCAL_H" = "02" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "not 02:00 local (it is ${LOCAL_H}:00) — this is the off-season"
+            echo "cron twin. Stopping cleanly; the other cron will fire."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout site repo
+        if: steps.gate.outputs.go == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # full history so a revert is possible in place
+
+      # ----------------------------------------------------------------------
+      - name: Python setup
+        if: steps.gate.outputs.go == 'true' && runner.environment == 'github-hosted'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Python check (self-hosted uses the machine's own interpreter)
+        if: steps.gate.outputs.go == 'true'
+        run: |
+          set -euo pipefail
+          export PATH="$EXTRA_PATH:$PATH"
+          python3 --version
+          python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' \
+            || { echo "::error::need python >= 3.10 on the runner"; exit 1; }
+
+      # ----------------------------------------------------------------------
+      # "Restore cache" on a self-hosted runner means: prove the caches the
+      # build depends on are actually on disk. They are persistent local dirs,
+      # not GitHub artifacts. A MISSING geometry cache does not crash the
+      # build — it silently produces pages with no neighbour context. That is
+      # exactly the kind of quiet degradation this whole file exists to stop,
+      # so it is a hard failure here.
+      - name: Restore / verify caches
+        if: steps.gate.outputs.go == 'true'
+        run: |
+          set -euo pipefail
+          CENSUS="$ENGINE_DIR/operations/office-census"
+          fail=0
+          check () {   # path  min-bytes  what
+            if [ ! -e "$1" ]; then
+              echo "MISSING  $3  ->  $1"; fail=1; return
+            fi
+            sz=$(du -sk "$1" | cut -f1)
+            if [ "$sz" -lt "$2" ]; then
+              echo "TOO SMALL $3  ->  ${sz}KB (expect >= ${2}KB)"; fail=1; return
+            fi
+            printf 'ok  %-22s %sKB\n' "$3" "$sz"
+          }
+          check "$CENSUS/cache/geometry"             400 "geometry cache"
+          check "$CENSUS/cache/gismo"            200000 "county cache"
+          check "$CENSUS/out/mail-ready-v1.csv"     100 "mail-ready census"
+          check "$CENSUS/out/corridor-map.csv"      100 "corridor map"
+          check "$CENSUS/out/assessments-corridor.json" 4 "corridor assessments"
+          check "$CENSUS/corridors"                  40 "corridor fact base"
+          [ "$fail" = 0 ] || { echo "::error::cache/input preflight failed — see RUNBOOK.md"; exit 1; }
+
+      - name: Preflight — engine, tools, secrets
+        if: steps.gate.outputs.go == 'true'
+        run: |
+          set -euo pipefail
+          export PATH="$EXTRA_PATH:$PATH"
+          test -d "$ENGINE_DIR" || { echo "::error::ENGINE_DIR not found: $ENGINE_DIR"; exit 1; }
+          test -f "$ENGINE_DIR/.claude/skills/8x-property-intel/scripts/property_page.py" \
+            || { echo "::error::page engine missing under $ENGINE_DIR"; exit 1; }
+          command -v gh >/dev/null || echo "::warning::gh not on PATH — issue-on-abort will not fire"
+          if [ -z "${FORM_ENDPOINT:-}" ]; then
+            echo "::warning::FORM_ENDPOINT is unset — pages fall back to mailto: and the scan beacon is compiled out"
+          fi
+          if [ -z "${FIRECRAWL_API_KEY:-}" ]; then
+            echo "::warning::FIRECRAWL_API_KEY is unset — the listings sweep will be SKIPPED, not faked"
+          fi
+          # Guard rails must pass before we are allowed to trust the guard.
+          python3 -m unittest discover \
+            -s "$ENGINE_DIR/operations/lead-gen/office-pilot/deploy" -p 'test_*.py' -q
+
+      # ----------------------------------------------------------------------
+      - name: Corridor refresh
+        id: corridors
+        if: steps.gate.outputs.go == 'true' && inputs.skip_corridors != true
+        continue-on-error: true      # last week's corridor JSON is still true
+        run: |
+          set -euo pipefail
+          export PATH="$EXTRA_PATH:$PATH"
+          cd "$ENGINE_DIR"
+          python3 .claude/skills/8x-office-census/scripts/corridors.py 2>&1 | tail -40
+
+      - name: Listings sweep (Firecrawl)
+        id: listings
+        if: steps.gate.outputs.go == 'true' && inputs.skip_listings != true
+        continue-on-error: true      # a stale sweep is honest; a faked one is not
+        run: |
+          set -euo pipefail
+          export PATH="$EXTRA_PATH:$PATH"
+          if [ -z "${FIRECRAWL_API_KEY:-}" ]; then
+            echo "::error::FIRECRAWL_API_KEY missing — SKIPPING the listings sweep."
+            echo "Pages will carry last week's market line, correctly dated."
+            echo "Nothing is invented to fill the gap. Set the secret and re-run."
+            exit 1
+          fi
+          cd "$ENGINE_DIR"
+          python3 .claude/skills/8x-property-intel/scripts/listings.py --budget 110 2>&1 | tail -40
+
+      - name: Build pages
+        id: build
+        if: steps.gate.outputs.go == 'true'
+        run: |
+          set -euo pipefail
+          export PATH="$EXTRA_PATH:$PATH"
+          cd "$ENGINE_DIR"
+          python3 .claude/skills/8x-property-intel/scripts/property_page.py --all 2>&1 | tee /tmp/8x-page-build.log
+          {
+            echo "### Page build"
+            echo '```'
+            tail -25 /tmp/8x-page-build.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ----------------------------------------------------------------------
+      # THE SAFETY GATE. Nothing below this line runs unless the guard says so.
+      - name: Publish guard
+        id: guard
+        if: steps.gate.outputs.go == 'true'
+        run: |
+          set -euo pipefail
+          export PATH="$EXTRA_PATH:$PATH"
+          # --pages-manifest + --mail-ready are what let check 7 (suppression)
+          # resolve token -> APN -> owner. WITHOUT them the check fails closed and
+          # aborts the publish — it never skips-as-pass. An owner who told us to
+          # stop must not have their page rebuilt and republished every Sunday.
+          python3 "$ENGINE_DIR/operations/lead-gen/office-pilot/deploy/guard.py" \
+            --built    "$ENGINE_DIR/operations/lead-gen/office-pilot/property-pages/p" \
+            --built-manifest "$ENGINE_DIR/operations/lead-gen/office-pilot/property-pages/built-manifest.txt" \
+            --live     "$GITHUB_WORKSPACE/p" \
+            --baseline "$ENGINE_DIR/operations/lead-gen/office-pilot/deploy/.pages-baseline" \
+            --min-ratio "$MIN_RATIO" \
+            --pages-manifest "$ENGINE_DIR/operations/lead-gen/office-pilot/property-pages/pages-manifest.csv" \
+            --mail-ready "$ENGINE_DIR/operations/office-census/out/mail-ready-v1.csv" \
+            --summary-file "$GITHUB_STEP_SUMMARY"
+
+      - name: Copy pages into the site repo
+        if: steps.gate.outputs.go == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/p"
+          # --include '*.html' + --exclude '*' : ONLY pages cross this line.
+          # No --delete, ever: a URL printed on a mailed letter must keep
+          # working even if its parcel later drops out of the census band.
+          rsync -a --checksum \
+            --include '*.html' --exclude '*' \
+            "$ENGINE_DIR/operations/lead-gen/office-pilot/property-pages/p/" \
+            "$GITHUB_WORKSPACE/p/"
+          touch "$GITHUB_WORKSPACE/.nojekyll"
+
+      - name: Commit only what changed
+        id: commit
+        if: steps.gate.outputs.go == 'true'
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
+          git config user.name  "8x pages robot"
+          git config user.email "noreply@8xcre.com"
+          git add -A p .nojekyll
+          if git diff --cached --quiet; then
+            echo "no page content changed this week — nothing to commit"
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          n=$(git diff --cached --name-only | wc -l | tr -d ' ')
+          git commit -m "pages: weekly rebuild $(TZ=America/Los_Angeles date +%F) (${n} files)"
+          echo "pushed=true"  >> "$GITHUB_OUTPUT"
+          echo "changed=$n"   >> "$GITHUB_OUTPUT"
+          echo "$n page file(s) changed" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Push (GitHub Pages publishes on push)
+        if: steps.gate.outputs.go == 'true' && steps.commit.outputs.pushed == 'true'
+        run: git -C "$GITHUB_WORKSPACE" push origin HEAD:${{ github.ref_name }}
+
+      - name: Record the new baseline
+        if: steps.gate.outputs.go == 'true' && steps.commit.outputs.pushed == 'true'
+        run: |
+          set -euo pipefail
+          export PATH="$EXTRA_PATH:$PATH"
+          # Same suppression inputs as the publish guard above: this re-runs the
+          # full check before recording the baseline, so it too must be able to
+          # resolve token -> APN -> owner rather than fail closed.
+          python3 "$ENGINE_DIR/operations/lead-gen/office-pilot/deploy/guard.py" \
+            --built    "$ENGINE_DIR/operations/lead-gen/office-pilot/property-pages/p" \
+            --built-manifest "$ENGINE_DIR/operations/lead-gen/office-pilot/property-pages/built-manifest.txt" \
+            --pages-manifest "$ENGINE_DIR/operations/lead-gen/office-pilot/property-pages/pages-manifest.csv" \
+            --mail-ready "$ENGINE_DIR/operations/office-census/out/mail-ready-v1.csv" \
+            --baseline "$ENGINE_DIR/operations/lead-gen/office-pilot/deploy/.pages-baseline" \
+            --write-baseline >/dev/null
+
+      # ----------------------------------------------------------------------
+      - name: Open an issue on failure
+        if: failure() && steps.gate.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          export PATH="$EXTRA_PATH:$PATH"
+          RUN="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          {
+            printf 'The Sunday page build did **not** publish. Live pages are untouched —\n'
+            printf 'every mailed URL still resolves to last week'"'"'s page.\n\n'
+            printf -- '- Run log: %s\n' "$RUN"
+            printf -- '- Guard: `%s`\n'            '${{ steps.guard.outcome }}'
+            printf -- '- Build: `%s`\n'            '${{ steps.build.outcome }}'
+            printf -- '- Corridor refresh: `%s`\n' '${{ steps.corridors.outcome }}'
+            printf -- '- Listings sweep: `%s`\n\n' '${{ steps.listings.outcome }}'
+            printf 'Next step: `operations/lead-gen/office-pilot/deploy/RUNBOOK.md` in the 8Xexit repo.\n'
+          } > /tmp/8x-pages-issue.md
+          gh issue create \
+            --title "weekly-pages FAILED $(TZ=America/Los_Angeles date +%F)" \
+            --body-file /tmp/8x-pages-issue.md \
+            || echo "::warning::could not open an issue (gh unauthenticated?) — check the run log directly"
