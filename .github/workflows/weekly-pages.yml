@@ -73,6 +73,11 @@ jobs:
       EXTRA_PATH: ${{ vars.EXTRA_PATH || '/opt/homebrew/bin:/Users/bennyplaksin/.nvm/versions/node/v24.14.0/bin' }}
       FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
       FORM_ENDPOINT: ${{ secrets.FORM_ENDPOINT }}
+      # The owner-facing "Pick a time online" button. Unset renders NO button
+      # rather than a dead one — which is correct, but silent: 1,621 pages would
+      # quietly lose their highest-intent action and all 7 guard checks would
+      # still pass. Preflight asserts it below so that can never happen quietly.
+      BOOKING_URL: ${{ secrets.BOOKING_URL }}
       MIN_RATIO: ${{ inputs.min_ratio || '0.90' }}
 
     steps:
@@ -100,6 +105,37 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0          # full history so a revert is possible in place
+
+      # ----------------------------------------------------------------------
+      # Update the engine before building with it.
+      #
+      # This step did not exist until 2026-08-14, and its absence was a live
+      # regression machine: the workflow only ever READ $ENGINE_DIR, so the
+      # engine on the runner froze at whatever commit it was cloned with. Within
+      # an hour of standing up the VPS it was two commits behind — including the
+      # fix for a booking button that 404'd on all 1,621 pages. The next Sunday
+      # run would have rebuilt every page from the stale engine, overwritten the
+      # live site with the regression, passed all 7 guard checks, and reported
+      # success. Silent, weekly, and in the owners' direction.
+      #
+      # Fast-forward only. A rebased or force-pushed engine branch stops the run
+      # rather than silently building something nobody reviewed, and the
+      # preflight below still runs the guard's own tests before anything builds.
+      - name: Update the engine (fast-forward only)
+        if: steps.gate.outputs.go == 'true'
+        run: |
+          set -euo pipefail
+          export PATH="$EXTRA_PATH:$PATH"
+          cd "$ENGINE_DIR"
+          before=$(git rev-parse --short HEAD)
+          git fetch --quiet origin
+          if ! git merge --ff-only origin/main; then
+            echo "::error::engine could not fast-forward — local HEAD $before has diverged from origin/main. Refusing to build from an unreviewed tree."
+            exit 1
+          fi
+          after=$(git rev-parse --short HEAD)
+          echo "engine: $before -> $after"
+          echo "- engine \`$before\` → \`$after\`" >> "$GITHUB_STEP_SUMMARY"
 
       # ----------------------------------------------------------------------
       - name: Python setup
@@ -159,6 +195,15 @@ jobs:
           command -v gh >/dev/null || echo "::warning::gh not on PATH — issue-on-abort will not fire"
           if [ -z "${FORM_ENDPOINT:-}" ]; then
             echo "::warning::FORM_ENDPOINT is unset — pages fall back to mailto: and the scan beacon is compiled out"
+          fi
+          # HARD FAIL, not a warning. An unset BOOKING_URL renders NO booking
+          # button — which is the correct behaviour (never a dead link) but is
+          # completely silent: 1,621 pages would quietly lose the page's
+          # highest-intent action and all 7 guard checks would still print PASS.
+          # The button is printed on nothing, so nobody would ever notice.
+          if [ -z "${BOOKING_URL:-}" ]; then
+            echo "::error::BOOKING_URL is unset — every page would publish WITHOUT the 'Pick a time online' button, silently. Set it as a repo secret."
+            exit 1
           fi
           if [ -z "${FIRECRAWL_API_KEY:-}" ]; then
             echo "::warning::FIRECRAWL_API_KEY is unset — the listings sweep will be SKIPPED, not faked"
